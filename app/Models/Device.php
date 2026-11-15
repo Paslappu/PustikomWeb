@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,12 +16,25 @@ class Device extends Model
         'qr',
         'isActive',
         'category_dana_id',
-        'sticker'
+        'sticker',
     ];
 
     public function location()
     {
         return $this->hasMany(Location::class);
+    }
+
+    /**
+     * Lokasi terakhir (berdasarkan created_at) - riwayat Location tetap append-only.
+     */
+    public function latestLocation()
+    {
+        return $this->hasOne(Location::class)->ofMany('created_at', 'max');
+    }
+
+    public function reports()
+    {
+        return $this->hasMany(DeviceReport::class);
     }
 
     /**
@@ -33,7 +47,7 @@ class Device extends Model
         static::creating(function ($device) {
             // Generate QR code when creating the device
             if (empty($device->qr)) {
-                $device->qr = QrCode::generate('https://sipp.tik.ung.ac.id/device' . $device->device_id);
+                $device->qr = QrCode::generate('https://sipp.tik.ung.ac.id/device'.$device->device_id);
             }
         });
     }
@@ -54,7 +68,7 @@ class Device extends Model
     /**
      * Relasi dengan model Gedung (gedung tempat perangkat berada)
      */
-  
+
     /**
      * Mendapatkan URL untuk QR code dalam format Base64.
      */

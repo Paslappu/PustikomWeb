@@ -76,6 +76,10 @@
         </div>
     @endif
 
+    @if ($message = Session::get('error'))
+        <div class="alert alert-danger" role="alert">{{ $message }}</div>
+    @endif
+
     @if (count($devices) > 0)
         <div class="card">
             <div class="card-body">

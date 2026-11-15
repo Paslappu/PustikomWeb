@@ -1,11 +1,13 @@
 <?php
 
+use App\Exports\DeviceExport;
 use App\Http\Controllers\AboutUsController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AlatController;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DeviceController;
+use App\Http\Controllers\DeviceReportController;
 use App\Http\Controllers\FrontPageController;
 use App\Http\Controllers\GedungController;
 use App\Http\Controllers\InformationController;
@@ -16,8 +18,8 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\VideoController;
 use App\Models\Device;
 use Illuminate\Support\Facades\Route;
-use App\Exports\DeviceExport;
 use Maatwebsite\Excel\Facades\Excel;
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -61,13 +63,13 @@ Route::get('/device/{id}', function ($id) {
     if ($latestLocation) {
         $gedung = $latestLocation->gedung;
         if ($latestLocation->location) {
-            list($x, $y) = explode(',', $latestLocation->location);
+            [$x, $y] = explode(',', $latestLocation->location);
         }
     }
 
     // Get the location history
     $locationHistory = $device->location()->orderBy('created_at', 'desc')->get();
-    
+
     // Check if device type is Ruckus and get AP summary if it is
     $apSummary = null;
     if ($device->tipe->isRuckus) {
@@ -76,14 +78,12 @@ Route::get('/device/{id}', function ($id) {
             $apSummary = $ruckusService->getApSummary($device->device_id);
         } catch (\Exception $e) {
             // Log the error but continue without AP data
-            \Illuminate\Support\Facades\Log::error('Error getting Ruckus AP data: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error('Error getting Ruckus AP data: '.$e->getMessage());
         }
     }
 
     return view('front.device', compact('device', 'gedung', 'latestLocation', 'x', 'y', 'locationHistory', 'apSummary'));
 })->name('device');
-
-
 
 Route::get('/catalog/product/{slug}', [FrontPageController::class, 'productDetail'])->name('product.detail');
 
@@ -100,7 +100,6 @@ Auth::routes([
 
 Route::middleware(['auth', 'login-check'])->group(function () {
     Route::get('/admin', [AdminController::class, 'index'])->name('admin.dashboard');
-
 
     Route::get('/admin/gedung', [GedungController::class, 'index'])->name('admin.gedung');
     Route::get('/admin/gedung/add', [GedungController::class, 'create'])->name('admin.gedung.create');
@@ -126,7 +125,6 @@ Route::middleware(['auth', 'login-check'])->group(function () {
     Route::put('/admin/user/{id}/update', [UserController::class, 'update'])->name('admin.user.update');
     Route::delete('/admin/user/{id}/delete', [UserController::class, 'destroy'])->name('admin.user.delete');
 
-
     Route::get('/admin/device', [DeviceController::class, 'index'])->name('admin.device');
     Route::get('/admin/device/add', [DeviceController::class, 'create'])->name('admin.device.create');
     Route::post('/admin/device/store', [DeviceController::class, 'store'])->name('admin.device.store');
@@ -139,6 +137,13 @@ Route::middleware(['auth', 'login-check'])->group(function () {
         return Excel::download(new DeviceExport, 'devices.xlsx');
     })->name('admin.device.export');
 
+    Route::get('/admin/device-report', [DeviceReportController::class, 'index'])->name('admin.device-report');
+    Route::get('/admin/device-report/add', [DeviceReportController::class, 'create'])->name('admin.device-report.create');
+    Route::post('/admin/device-report/store', [DeviceReportController::class, 'store'])->name('admin.device-report.store');
+    Route::get('/admin/device-report/{id}/show', [DeviceReportController::class, 'show'])->name('admin.device-report.show');
+    Route::get('/admin/device-report/{id}/edit', [DeviceReportController::class, 'edit'])->name('admin.device-report.edit');
+    Route::put('/admin/device-report/{id}/update', [DeviceReportController::class, 'update'])->name('admin.device-report.update');
+    Route::delete('/admin/device-report/{id}/delete', [DeviceReportController::class, 'destroy'])->name('admin.device-report.delete');
 
     Route::get('/admin/category', [CategoryController::class, 'index'])->name('admin.category');
     Route::get('/admin/category/add', [CategoryController::class, 'create'])->name('admin.category.create');
@@ -154,7 +159,6 @@ Route::middleware(['auth', 'login-check'])->group(function () {
     Route::put('/admin/alat/{id}/update', [AlatController::class, 'update'])->name('admin.alat.update');
     Route::delete('/admin/alat/{id}/delete', [AlatController::class, 'destroy'])->name('admin.alat.delete');
 
-
     Route::get('/admin/catalog', [CatalogController::class, 'index'])->name('admin.catalog');
     Route::get('/admin/catalog/add', [CatalogController::class, 'create'])->name('admin.catalog.create');
     Route::post('/admin/catalog/store', [CatalogController::class, 'store'])->name('admin.catalog.store');
@@ -165,7 +169,6 @@ Route::middleware(['auth', 'login-check'])->group(function () {
     Route::delete('/admin/catalog/{id}/delete-image', [CatalogController::class, 'destroyImage'])->name('admin.catalog.delete-image');
 
     Route::get('/admin/gallery', [CatalogController::class, 'gallery'])->name('admin.gallery');
-
 
     Route::get('/admin/video', [VideoController::class, 'index'])->name('admin.video');
     Route::get('/admin/video/add', [VideoController::class, 'create'])->name('admin.video.create');

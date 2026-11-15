@@ -7,6 +7,7 @@ use Illuminate\Foundation\Support\Providers\RouteServiceProvider as ServiceProvi
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Str;
 
 class RouteServiceProvider extends ServiceProvider
 {
@@ -26,6 +27,11 @@ class RouteServiceProvider extends ServiceProvider
     {
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+        });
+
+        // Login API mobile: 5 percobaan per menit per kombinasi email + IP
+        RateLimiter::for('api-login', function (Request $request) {
+            return Limit::perMinute(5)->by(Str::lower((string) $request->input('email')).'|'.$request->ip());
         });
 
         $this->routes(function () {

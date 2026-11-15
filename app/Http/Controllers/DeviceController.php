@@ -4,12 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\CategoryDana;
 use App\Models\Device;
+use App\Models\Gedung;
 use App\Models\Location;
 use App\Models\Tipe;
-use App\Models\Gedung;
-use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use App\Services\RuckusService;
+use Illuminate\Http\Request;
 
 class DeviceController extends Controller
 {
@@ -24,7 +23,7 @@ class DeviceController extends Controller
             'location' => function ($query) {
                 $query->orderBy('created_at', 'desc'); // Get locations ordered by latest first
             },
-            'location.gedung' // Eager load gedung from location
+            'location.gedung', // Eager load gedung from location
         ])->get();
 
         // Fetch all types and buildings for filtering purposes
@@ -37,7 +36,7 @@ class DeviceController extends Controller
             'active' => 'device',
             'devices' => $devices,
             'gedungs' => $gedungs,
-            'tipe' => $tipe
+            'tipe' => $tipe,
         ]);
     }
 
@@ -52,7 +51,7 @@ class DeviceController extends Controller
             'active' => 'device',
             'tipers' => Tipe::orderBy('name', 'ASC')->get(), // Menyediakan tipe perangkat
             'gedungs' => Gedung::orderBy('name', 'ASC')->get(), // Menyediakan gedung\
-            'category' => CategoryDana::all()
+            'category' => CategoryDana::all(),
         ]);
     }
 
@@ -70,7 +69,7 @@ class DeviceController extends Controller
                 'isActive' => 'required|boolean',
                 'location' => 'nullable|string', // Validate location
                 'category_dana_id' => 'required',
-                'sticker' => 'required'
+                'sticker' => 'required',
             ],
             [
                 'device_id.required' => 'Device ID is required!',
@@ -83,7 +82,7 @@ class DeviceController extends Controller
 
         if ($request->hasFile('sticker')) {
             $file = $request->file('sticker');
-            $fileName = time() . '-' . $file->getClientOriginalName();
+            $fileName = time().'-'.$file->getClientOriginalName();
             $file->storeAs('public/uploads/sticker/', $fileName);
         }
         // Membuat perangkat baru dan otomatis menghasilkan QR Code
@@ -92,7 +91,7 @@ class DeviceController extends Controller
             'tipe_id' => $request->tipe_id,
             'isActive' => $request->isActive,
             'category_dana_id' => $request->category_dana_id,
-            'sticker' => $fileName
+            'sticker' => $fileName,
         ]);
 
         Location::create([
@@ -114,7 +113,7 @@ class DeviceController extends Controller
             'location' => function ($query) {
                 $query->orderBy('created_at', 'desc'); // Urutkan berdasarkan tanggal terbaru
             },
-            'tipe'
+            'tipe',
         ])->findOrFail($id);
 
         // Mendapatkan lokasi terakhir
@@ -126,7 +125,7 @@ class DeviceController extends Controller
         if ($latestLocation) {
             $gedung = $latestLocation->gedung; // Mengambil gedung dari relasi Location
             if ($latestLocation->location) {
-                list($x, $y) = explode(',', $latestLocation->location); // Memisahkan x dan y
+                [$x, $y] = explode(',', $latestLocation->location); // Memisahkan x dan y
             }
         }
 
@@ -141,10 +140,9 @@ class DeviceController extends Controller
                 $apSummary = $ruckusService->getApSummary($device->device_id);
             } catch (\Exception $e) {
                 // Log the error but continue without AP data
-                \Illuminate\Support\Facades\Log::error('Error getting Ruckus AP data: ' . $e->getMessage());
+                \Illuminate\Support\Facades\Log::error('Error getting Ruckus AP data: '.$e->getMessage());
             }
         }
-
 
         $gedungs = Gedung::orderBy('name', 'ASC')->get();
 
@@ -213,7 +211,7 @@ class DeviceController extends Controller
         $this->validate(
             $request,
             [
-                'device_id' => 'required|max:255|unique:devices,device_id,' . $id,
+                'device_id' => 'required|max:255|unique:devices,device_id,'.$id,
                 'tipe_id' => 'required',
                 'isActive' => 'required|boolean',
                 'category_dana_id' => 'required',
@@ -228,7 +226,7 @@ class DeviceController extends Controller
 
         if ($request->hasFile('sticker')) {
             $file = $request->file('sticker');
-            $fileName = time() . '-' . $file->getClientOriginalName();
+            $fileName = time().'-'.$file->getClientOriginalName();
             $file->storeAs('public/uploads/sticker/', $fileName);
         }
 
@@ -243,7 +241,6 @@ class DeviceController extends Controller
             'category_dana_id' => $request->category_dana_id,
         ]);
 
-
         // Return success response
         return redirect()->route('admin.device')->with('success', 'Device has been updated!');
     }
@@ -254,6 +251,12 @@ class DeviceController extends Controller
     public function destroy($id)
     {
         $device = Device::findOrFail($id);
+
+        // Device yang sudah punya laporan tidak boleh dihapus (hindari file laporan yatim)
+        if ($device->reports()->exists()) {
+            return redirect()->route('admin.device')->with('error', 'Device cannot be deleted because it has device reports. Delete the reports first.');
+        }
+
         $device->delete();
 
         return redirect()->route('admin.device')->with('success', 'Device has been deleted!');
